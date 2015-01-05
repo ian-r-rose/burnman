@@ -104,6 +104,7 @@ class Composite(Material):
         self.temperature = temperature
         for (fraction, phase) in self.children:
             phase.set_state(pressure, temperature)
+        self.gibbs = np.sum( [ph.gibbs*frac for (frac, ph) in self.children] )
 
     def density(self):
         """

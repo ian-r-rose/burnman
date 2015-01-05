@@ -6,10 +6,12 @@ import numpy as np
 import scipy.optimize as opt
 
 from burnman import Material
+from burnman import Mineral
+from burnman import SolidSolution
 import gibbsminimization as gm
 
 
-class EquilibriumAssemblage(burnman.Material):
+class EquilibriumAssemblage(Material):
     """
     Class for taking a certain assemblage of elements,
     then calculating the equilibrium assemblage of minerals
@@ -147,7 +149,7 @@ class EquilibriumAssemblage(burnman.Material):
         #single phases somewhat differently.
         i = 0
         for phase in self.phases:
-            if isinstance (phase, burnman.SolidSolution):
+            if isinstance (phase, SolidSolution):
 
                 n = len(phase.base_material)
                 frac = np.sum(species_vector[i:(i+n)])
@@ -158,7 +160,7 @@ class EquilibriumAssemblage(burnman.Material):
                 partial_gibbs[i:(i+n)] = phase.partial_gibbs
                 i+=n
                    
-            elif isinstance(phase, burnman.Mineral):
+            elif isinstance(phase, Mineral):
                 phase.set_state( pressure, temperature )
                 partial_gibbs[i] = phase.gibbs
                 i+=1

@@ -63,6 +63,7 @@ from material import Material
 from composite import Composite
 from solutionmodel import SolutionModel
 from solidsolution import SolidSolution
+from equilibriumassemblage import EquilibriumAssemblage
 from mineral_helpers import *
 
 # high level functions
