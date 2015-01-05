@@ -66,6 +66,7 @@ from .composite import Composite
 from .solutionmodel import SolutionModel
 from .solidsolution import SolidSolution
 from .mineral_helpers import *
+from .equilibriumassemblage import EquilibriumAssemblage
 
 # high level functions
 from .main import *
