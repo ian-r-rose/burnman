@@ -3,7 +3,8 @@
 # Released under GPL v2 or later.
 
 import numpy as np
-import scipy.optimize as opt
+import scipy.optimize as optimize
+import nlopt
 
 from burnman import Material
 from burnman import Mineral
@@ -91,13 +92,13 @@ class EquilibriumAssemblage(Material):
 
     def _solve_equilibrium_equations( self, pressure, temperature ): 
         
-        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_species_vector(self.reduced_species_vector * 0.))
+        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_species_vector(self.reaction_vector * 0.))
         print ref_gibbs
         equilibrium = lambda x : (self._equilibrium_equations( pressure, temperature, self._compute_species_vector( x ) ))
-        sol = opt.root(equilibrium, self.reduced_species_vector, method='hybr', options={'xtol':1.e-11})
+        sol = opt.root(equilibrium, self.reaction_vector, method='hybr', options={'xtol':1.e-11})
 
-        self.reduced_species_vector = sol.x
-        self.species_vector = self._compute_species_vector(self.reduced_species_vector)
+        self.reaction_vector = sol.x
+        self.species_vector = self._compute_species_vector(self.reaction_vector)
         self.gibbs = self._compute_gibbs(pressure, temperature, self.species_vector)
 
     def _equilibrium_equations ( self, pressure, temperature, species_vector):
@@ -111,23 +112,31 @@ class EquilibriumAssemblage(Material):
 
     def _minimize_gibbs( self, pressure, temperature):
 
-        n = len(self.endmember_formulae)
+        m = len(self.species_vector) #number of nonnegativity constraints
+        n = len(self.reaction_vector) #number of variables to optimize
         
         # Calculate a reference gibbs free energy at the baseline assemblage.  This is a kind of ill-conditioned
         # minimization problem, and it seems to work better if we subtract off a reference state and normalize.
-        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_species_vector(self.reduced_species_vector * 0.))
+        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_species_vector(self.reaction_vector * 0.))
  
-        #define the function to minimize and then do it.
-        minimize_gibbs = lambda x : (self._compute_gibbs( pressure, temperature, self._compute_species_vector(x) ) - ref_gibbs)/np.abs(ref_gibbs)
-#        minimize_gibbs = lambda x : (self._compute_gibbs( pressure, temperature, self._compute_species_vector(x) ))
-        equilibrium = lambda x : (self._equilibrium_equations( pressure, temperature, self._compute_species_vector( x ) )/np.abs(ref_gibbs))
-#        equilibrium=None
-    
-        #Set the solution
-        constraints={'type':'ineq', 'fun':self._compute_species_vector}
-        sol = opt.minimize( minimize_gibbs, self.reduced_species_vector, method='SLSQP', jac=equilibrium, constraints=constraints )
-        self.reduced_species_vector = sol.x
-        self.species_vector = self._compute_species_vector(self.reduced_species_vector)
+        def function_to_minimize( x, grad ):
+            if grad.size > 0:
+                partial_gibbs = self._compute_partial_gibbs( pressure, temperature, self._compute_species_vector(x))
+                grad[:] = np.dot(partial_gibbs, self.right_nullspace)
+            return self._compute_gibbs( pressure, temperature, self._compute_species_vector(x) ) - ref_gibbs
+
+        def nonnegativity_constraints( result, x, grad ):
+            if grad.size > 0:
+                grad[:] = -1.*np.eye(m, n)
+            result[:] = -1.*self._compute_species_vector(x)
+
+        opt = nlopt.opt(nlopt.LN_COBYLA, n)
+        opt.set_min_objective( function_to_minimize )
+        opt.add_inequality_mconstraint( nonnegativity_constraints, np.ones(m)*1.e-8)
+        opt.set_xtol_rel(1.e-6)
+
+        self.reaction_vector = opt.optimize( self.reaction_vector )
+        self.species_vector = self._compute_species_vector(self.reaction_vector)
         self.gibbs = self._compute_gibbs(pressure, temperature, self.species_vector)
         
 
@@ -151,7 +160,7 @@ class EquilibriumAssemblage(Material):
         for phase in self.phases:
             if isinstance (phase, SolidSolution):
 
-                n = len(phase.base_material)
+                n = len(phase.endmembers)
                 frac = np.sum(species_vector[i:(i+n)])
                 molar_fractions = ( species_vector[i:(i+n)]/frac if (frac > 1.e-6)  else np.ones( n )/n )
                 phase.set_composition( molar_fractions )
@@ -225,7 +234,7 @@ class EquilibriumAssemblage(Material):
         # was kind of tricky.  Non-negative least squares does the same thing, is simpler,
         # and is more robust. [IR]
         eps = 1.e-10
-        baseline_assemblage = opt.nnls( self.stoichiometric_matrix, self.bulk_composition_vector)
+        baseline_assemblage = optimize.nnls( self.stoichiometric_matrix, self.bulk_composition_vector)
 
         # It is possible, even easy, to not be able to represent a given composition by
         # a given set of phases.  Raise an exception if this occurs.
@@ -239,5 +248,5 @@ class EquilibriumAssemblage(Material):
         self.baseline_assemblage = baseline_assemblage[0]
 
         #Our starting vector in the nullspace is just going to be the zero vector
-        self.reduced_species_vector = np.zeros( self.right_nullspace.shape[1] )
-        self.species_vector = self._compute_species_vector( self.reduced_species_vector)
+        self.reaction_vector = np.zeros( self.right_nullspace.shape[1] )
+        self.species_vector = self._compute_species_vector( self.reaction_vector)

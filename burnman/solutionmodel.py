@@ -14,6 +14,17 @@ kronecker delta function for integers
 kd = lambda x, y: 1 if x == y else 0
 
 
+def logish(x):
+    eps = 1.e-5
+#    assert( x <= 1. )
+#    assert( x >= 0. )
+    if x > eps:
+        return np.log(x)
+    else:
+        dx = x-eps
+        return np.log(eps) + dx/eps - dx*dx/eps/eps/2.
+
+
 class SolutionModel(object):
     """
     This is the base class for a solution model,  intended for use
@@ -181,10 +192,10 @@ class IdealSolution (SolutionModel):
         self.endmember_configurational_entropies=np.zeros(shape=(self.n_endmembers))
         for idx, endmember_occupancy in enumerate(self.endmember_occupancies):
             for occ in range(self.n_occupancies):
-                if endmember_occupancy[occ] > 1e-10:
+#                if endmember_occupancy[occ] > 1e-10:
                     self.endmember_configurational_entropies[idx] = \
                         self.endmember_configurational_entropies[idx] - \
-                        constants.gas_constant*self.site_multiplicities[occ]*endmember_occupancy[occ]*np.log(endmember_occupancy[occ])
+                        constants.gas_constant*self.site_multiplicities[occ]*endmember_occupancy[occ]*logish(endmember_occupancy[occ])
 
     def _endmember_configurational_entropy_contribution(self, molar_fractions):
         return np.dot(molar_fractions, self.endmember_configurational_entropies)
@@ -193,8 +204,8 @@ class IdealSolution (SolutionModel):
         site_occupancies=np.dot(molar_fractions, self.endmember_occupancies)
         conf_entropy=0
         for idx, occupancy in enumerate(site_occupancies):
-            if occupancy > 1e-10:
-                conf_entropy=conf_entropy-constants.gas_constant*occupancy*self.site_multiplicities[idx]*np.log(occupancy)
+#            if occupancy > 1e-10:
+                conf_entropy=conf_entropy-constants.gas_constant*occupancy*self.site_multiplicities[idx]*logish(occupancy)
 
         return conf_entropy
 
@@ -209,8 +220,8 @@ class IdealSolution (SolutionModel):
         for e in range(self.n_endmembers):
             lna[e]=0.0
             for occ in range(self.n_occupancies):
-                if self.endmember_occupancies[e][occ] > 1e-10 and site_occupancies[occ] > 1e-10:
-                    lna[e]=lna[e] + self.endmember_occupancies[e][occ]*self.site_multiplicities[occ]*np.log(site_occupancies[occ])
+#                if self.endmember_occupancies[e][occ] > 1e-10 and site_occupancies[occ] > 1e-10:
+                    lna[e]=lna[e] + self.endmember_occupancies[e][occ]*self.site_multiplicities[occ]*logish(site_occupancies[occ])
 
             normalisation_constant=self.endmember_configurational_entropies[e]/constants.gas_constant
             lna[e]=lna[e] + self.endmember_configurational_entropies[e]/constants.gas_constant
