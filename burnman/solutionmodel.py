@@ -266,7 +266,7 @@ class AsymmetricRegularSolution (IdealSolution):
         IdealSolution.__init__(self, endmembers)
         
     def _phi( self, molar_fractions):
-        phi=np.array([self.alpha[i]*molar_fractions[i] for i in range(self.n_endmembers)])
+        phi=np.fromiter((a*f for a,f in zip(self.alpha, molar_fractions)), dtype=np.float, count=self.n_endmembers)
         phi=np.divide(phi, np.sum(phi))
         return phi
 
@@ -281,7 +281,7 @@ class AsymmetricRegularSolution (IdealSolution):
         Vint=np.zeros(len(molar_fractions))
 
         for l in range(self.n_endmembers):
-            q=np.array([kd(i,l)-phi[i] for i in range(self.n_endmembers)])
+            q=np.fromiter( (kd(i,l)-phi[i] for i in range(self.n_endmembers)), dtype=np.float, count=self.n_endmembers)
 
             Hint[l]=0.-self.alpha[l]*np.dot(q,np.dot(self.Wh,q))
             Sint[l]=0.-self.alpha[l]*np.dot(q,np.dot(self.Ws,q))

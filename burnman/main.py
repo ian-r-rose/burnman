@@ -95,12 +95,13 @@ def average_moduli(moduli_list, averaging_scheme=burnman.averaging_schemes.Voigt
     result = [ElasticProperties() for i in range(n_pressures)]
 
     for idx in range(n_pressures):
-        fractions = np.array([e.fraction for e in moduli_list[idx]])
+        n = len(moduli_list[idx])
+        fractions = np.fromiter((e.fraction for e in moduli_list[idx]), dtype=np.float, count=n)
 
-        V_frac = np.array([m.V for m in moduli_list[idx]])
-        K_ph = np.array([m.K for m in moduli_list[idx]])
-        G_ph = np.array([m.G for m in moduli_list[idx]])
-        rho_ph = np.array([m.rho for m in moduli_list[idx]])
+        V_frac = np.fromiter((m.V for m in moduli_list[idx]), dtype=np.float, count=n)
+        K_ph = np.fromiter((m.K for m in moduli_list[idx]), dtype=np.float, count=n)
+        G_ph = np.fromiter((m.G for m in moduli_list[idx]), dtype=np.float, count=n)
+        rho_ph = np.fromiter((m.rho for m in moduli_list[idx]), dtype=np.float, count=n)
 
         result[idx].V = sum(V_frac)
         result[idx].K = averaging_scheme.average_bulk_moduli(V_frac, K_ph, G_ph)
@@ -165,9 +166,9 @@ def velocities_from_rock(rock, pressures, temperatures, averaging_scheme=burnman
     moduli_list = calculate_moduli(rock, pressures, temperatures)
     moduli = average_moduli(moduli_list, averaging_scheme)
     mat_vp, mat_vs, mat_vphi = compute_velocities(moduli)
-    mat_rho = np.array([m.rho for m in moduli])
-    mat_K = np.array([m.K for m in moduli])
-    mat_G = np.array([m.G for m in moduli])
+    mat_rho = np.fromiter((m.rho for m in moduli), dtype=np.float, count=len(moduli))
+    mat_K = np.fromiter((m.K for m in moduli), dtype=np.float, count=len(moduli))
+    mat_G = np.fromiter((m.G for m in moduli), dtype=np.float, count=len(moduli))
     return mat_rho, mat_vp, mat_vs, mat_vphi, mat_K, mat_G
 
 def depths_for_rock(rock,pressures, temperatures,averaging_scheme=burnman.averaging_schemes.VoigtReussHill()):
@@ -191,9 +192,9 @@ def depths_for_rock(rock,pressures, temperatures,averaging_scheme=burnman.averag
     """
     moduli_list = calculate_moduli(rock, pressures, temperatures)
     moduli = average_moduli(moduli_list, averaging_scheme)
-    mat_rho = np.array([m.rho for m in moduli])
+    mat_rho = np.fromiter((m.rho for m in moduli), dtype=np.float, count=len(moduli))
     seismic_model = burnman.seismic.PREM()
-    depthsref = np.array(map(seismic_model.depth,pressures))
+    depthsref = np.fromiter(( seismic_model.depth(p) for p in pressures), dtype=np.float, count=len(pressures))
     pressref = np.zeros_like(pressures)
     g  = seismic_model.gravity(depthsref) # G for prem
     depths  = np.hstack((depthsref[0],depthsref[0]+integrate.cumtrapz(1./(g*mat_rho),pressures)))
@@ -231,7 +232,7 @@ def pressures_for_rock(rock, depths, T0, averaging_scheme=burnman.averaging_sche
         temperatures = burnman.geotherm.adiabatic(pressures,T0,rock)
         moduli_list = calculate_moduli(rock, pressures, temperatures)
         moduli = average_moduli(moduli_list, averaging_scheme)
-        mat_rho = np.array([m.rho for m in moduli])
+        mat_rho = np.fromiter((m.rho for m in moduli), dtype=np.float, count=len(moduli))
         # calculate pressures
         pressref = pressures
         pressures = np.hstack((pressref[0], pressref[0]+integrate.cumtrapz(g*mat_rho,depths)))

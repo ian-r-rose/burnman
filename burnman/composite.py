@@ -109,7 +109,7 @@ class Composite(Material):
         """
         Compute the density of the composite based on the molar volumes and masses
         """
-        densities = np.array([ph.density() for (_,ph) in self.children])
-        volumes = np.array([ph.molar_volume()*fraction for (fraction, ph) in self.children])
+        densities = np.fromiter((ph.density() for (_,ph) in self.children), dtype=np.float, count=len(self.children) )
+        volumes = np.fromiter((ph.molar_volume()*fraction for (fraction, ph) in self.children), dtype=np.float, count=len(self.children))
         return np.sum(densities*volumes)/np.sum(volumes)
 

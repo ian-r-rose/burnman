@@ -74,8 +74,8 @@ class Model(object):
             n_pressures = len(self.p)
             self.alpha = np.zeros(n_pressures)
             for idx in range(n_pressures):
-                V = np.array([m['V'] for m in self.moduli[idx]])
-                alpha = np.array([m['alpha'] for m in self.moduli[idx]])
+                V = np.fromiter((m['V'] for m in self.moduli[idx]), dtype=np.float, count=len(self.moduli[idx]))
+                alpha = np.fromiter((m['alpha'] for m in self.moduli[idx]), dtype=np.float, count=len(self.moduli[idx]))
                 self.alpha[idx] = self.avgscheme.average_thermal_expansivity(V, alpha)
 
         return self.alpha
@@ -124,12 +124,13 @@ class Model(object):
 
             for idx in range(n_pressures):
                 mods  = self.moduli[idx]
+                n = len(mods)
 
-                fractions = np.array([e['fraction'] for e in mods])
-                V_frac = np.array([m['V'] for m in mods])
-                K_ph = np.array([m['K'] for m in mods])
-                G_ph = np.array([m['G'] for m in mods])
-                rho_ph = np.array([m['rho'] for m in mods])
+                fractions = np.fromiter((e['fraction'] for e in mods), dtype=np.float, count=n)
+                V_frac = np.fromiter((m['V'] for m in mods), dtype=np.float, count=n)
+                K_ph = np.fromiter((m['K'] for m in mods), dtype=np.float, count=n)
+                G_ph = np.fromiter((m['G'] for m in mods), dtype=np.float, count=n)
+                rho_ph = np.fromiter((m['rho'] for m in mods), dtype=np.float, count=n)
 
                 self.mat_V[idx] = sum(V_frac)
                 self.mat_K[idx] = self.avgscheme.average_bulk_moduli(V_frac, K_ph, G_ph)
@@ -145,10 +146,11 @@ class Model(object):
             self.c_v = np.zeros(len(self.p))
             self.c_p = np.zeros(len(self.p))
             for idx in range(len(self.p)):
-                fractions = np.array([m['fraction'] for m in self.moduli[idx]])
-                alphas = np.array([m['alpha'] for m in self.moduli[idx]])
-                c_v = np.array([m['c_v'] for m in self.moduli[idx]])
-                c_p = np.array([m['c_p'] for m in self.moduli[idx]])
+                n = len(self.moduli[idx])
+                fractions = np.fromiter((m['fraction'] for m in self.moduli[idx]), dtype=np.float, count=n)
+                alphas = np.fromiter((m['alpha'] for m in self.moduli[idx]), dtype=np.float, count=n)
+                c_v = np.fromiter((m['c_v'] for m in self.moduli[idx]), dtype=np.float, count=n)
+                c_p = np.fromiter((m['c_p'] for m in self.moduli[idx]), dtype=np.float, count=n)
                 self.c_v[idx] = self.avgscheme.average_heat_capacity_v(fractions, c_v)
                 self.c_p[idx] = self.avgscheme.average_heat_capacity_p(fractions, c_p)
 
