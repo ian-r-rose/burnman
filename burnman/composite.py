@@ -38,14 +38,19 @@ class Composite(Material):
     """
     def __init__(self, phases, fractions=None, fraction_type='molar'):
         """
-        Create a composite using a list of phases and their fractions (adding to 1.0).
+        Create a composite using a list of phases and their fractions (summing to 1.0).
 
         Parameters
         ----------
         phases: list of :class:`burnman.Material`
             list of phases.
         fractions: list of floats
-            molar fraction for each phase.
+            fraction for each phase.
+        fraction_type: string
+            can be 'molar' or 'mass', defaults to 'molar'.
+            If it is 'molar', the fractions are interpreted
+            as molar fractions, if it is 'mass', the fractions
+            are interpreted as mass fractions.
         """
 
         Material.__init__(self)
@@ -62,6 +67,19 @@ class Composite(Material):
 
 
     def set_fractions(self, fractions, fraction_type='molar'):
+        """
+        Specify the fractions of the phases in the composite (summing to 1.0).
+
+        Parameters
+        ----------
+        fractions: list of floats
+            fraction for each phase.
+        fraction_type: string
+            can be 'molar' or 'mass', defaults to 'molar'.
+            If it is 'molar', the fractions are interpreted
+            as molar fractions, if it is 'mass', the fractions
+            are interpreted as mass fractions.
+        """
         assert(len(self.phases)==len(fractions))
 
         try:
@@ -101,6 +119,12 @@ class Composite(Material):
         """
         Set the averaging scheme for the moduli in the composite.
         Default is set to VoigtReussHill, when Composite is initialized.
+
+        Parameters
+        ----------
+        averaging_scheme: string or object of type :class:`burnman.AveragingScheme`.
+            If it is a string, the string must match the class name of one of
+            the averaging schemes implemented in :mod:`burnman.averaging_schemes`.
         """
         
         if type(averaging_scheme)==str:
