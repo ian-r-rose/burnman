@@ -46,7 +46,7 @@ def assemble_stoichiometric_matrix ( minerals):
     for m in minerals:
         # Add the endmembers if it is a solid solution
         if isinstance(m, SolidSolution):
-            for e in m.base_material:
+            for e in m.endmembers:
                 f = e[0].params['formula']
                 formulae.append(f)
                 for k in f.keys():
@@ -192,12 +192,12 @@ def set_eqns(arg, bulk_composition, mineral_list, stoic, null, fixed_vars):
     for mineral in mineral_list:
         mineral_proportion=propscomps[mbridx]
         if isinstance(mineral, SolidSolution):
-            mbrprops=np.zeros(len(mineral.base_material))
-            mbrprops[0:len(mineral.base_material)-1]=propscomps[mbridx+1:mbridx+len(mineral.base_material)]
-            mbrprops[len(mineral.base_material)-1]=1.0-sum(mbrprops) 
+            mbrprops=np.zeros(len(mineral.endmembers))
+            mbrprops[0:len(mineral.endmembers)-1]=propscomps[mbridx+1:mbridx+len(mineral.endmembers)]
+            mbrprops[len(mineral.endmembers)-1]=1.0-sum(mbrprops) 
             mineral.set_composition(mbrprops)
             partial_gibbs_excesses=mineral.calcpartialgibbsexcesses(P, T, mbrprops)
-            for idx, endmember in enumerate(mineral.base_material):
+            for idx, endmember in enumerate(mineral.endmembers):
                 endmember_proportions[minidx]=mineral_proportion*mbrprops[idx]
                 minidx=minidx+1
                 partialgibbs[mbridx]=endmember[0].calcgibbs(P, T) + partial_gibbs_excesses[idx]

@@ -86,28 +86,15 @@ class EquilibriumAssemblage(Material):
             The temperature in [K] at which to set the state. 
         """
         self._minimize_gibbs( pressure, temperature )
-#        self._solve_equilibrium_equations (pressure, temperature )
 
+    def molar_gibbs(self):
+        return self._gibbs
 
-    def _solve_equilibrium_equations( self, pressure, temperature ): 
-        
-        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_species_vector(self.reduced_species_vector * 0.))
-        print ref_gibbs
-        equilibrium = lambda x : (self._equilibrium_equations( pressure, temperature, self._compute_species_vector( x ) ))
-        sol = opt.root(equilibrium, self.reduced_species_vector, method='hybr', options={'xtol':1.e-11})
+    def _equilibrium_equations ( self, pressure, temperature, endmember_vector):
+        partial_gibbs = self._compute_partial_gibbs( pressure, temperature, endmember_vector)
+        equilibrium = np.dot(partial_gibbs, self.right_nullspace)
 
-        self.reduced_species_vector = sol.x
-        self.species_vector = self._compute_species_vector(self.reduced_species_vector)
-        self.gibbs = self._compute_gibbs(pressure, temperature, self.species_vector)
-
-    def _equilibrium_equations ( self, pressure, temperature, species_vector):
-        partial_gibbs = self._compute_partial_gibbs( pressure, temperature, species_vector)
-        gibbs_inequalities = np.dot(partial_gibbs, self.right_nullspace)
-
-        if np.any(species_vector < -1.e-6):
-           gibbs_inequalitites = np.ones_like( gibbs_inequalities) * 10000000.
-
-        return gibbs_inequalities
+        return equilibrium 
 
     def _minimize_gibbs( self, pressure, temperature):
 
@@ -115,34 +102,31 @@ class EquilibriumAssemblage(Material):
         
         # Calculate a reference gibbs free energy at the baseline assemblage.  This is a kind of ill-conditioned
         # minimization problem, and it seems to work better if we subtract off a reference state and normalize.
-        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_species_vector(self.reduced_species_vector * 0.))
+        ref_gibbs = self._compute_gibbs( pressure, temperature, self._compute_endmember_vector(self.reaction_vector * 0.))
  
         #define the function to minimize and then do it.
-        minimize_gibbs = lambda x : (self._compute_gibbs( pressure, temperature, self._compute_species_vector(x) ) - ref_gibbs)/np.abs(ref_gibbs)
-#        minimize_gibbs = lambda x : (self._compute_gibbs( pressure, temperature, self._compute_species_vector(x) ))
-        equilibrium = lambda x : (self._equilibrium_equations( pressure, temperature, self._compute_species_vector( x ) )/np.abs(ref_gibbs))
-#        equilibrium=None
+        minimize_gibbs = lambda x : (self._compute_gibbs( pressure, temperature, self._compute_endmember_vector(x) ))
+        equilibrium = lambda x : (self._equilibrium_equations( pressure, temperature, self._compute_endmember_vector( x ) ))
     
         #Set the solution
-        constraints={'type':'ineq', 'fun':self._compute_species_vector}
-        sol = opt.minimize( minimize_gibbs, self.reduced_species_vector, method='SLSQP', jac=equilibrium, constraints=constraints )
-        self.reduced_species_vector = sol.x
-        self.species_vector = self._compute_species_vector(self.reduced_species_vector)
-        self.gibbs = self._compute_gibbs(pressure, temperature, self.species_vector)
-        
+        constraints={'type':'ineq', 'fun':self._compute_endmember_vector, 'ftol':1.e-8, 'maxiter':1000}
+        sol = opt.minimize( minimize_gibbs, self.reaction_vector, method='SLSQP', jac=equilibrium, constraints=constraints )
 
-
+        #Copy over the solution
+        self.reaction_vector = sol.x
+        self.endmember_vector = self._compute_endmember_vector(self.reaction_vector)
+        self._gibbs = self._compute_gibbs(pressure, temperature, self.endmember_vector)
 
     def print_assemblage(self):
         """
         Print the current abundance of each endmember in the assemblage, as a molar fraction.
         """
-        tot = np.sum(self.species_vector)
-        for f,s in zip(self.endmember_formulae, self.species_vector):
+        tot = np.sum(self.endmember_vector)
+        for f,s in zip(self.endmember_formulae, self.endmember_vector):
             print f, s/tot
 
-    def _compute_partial_gibbs( self, pressure, temperature, species_vector):
-        partial_gibbs = np.empty_like(species_vector)
+    def _compute_partial_gibbs( self, pressure, temperature, endmember_vector):
+        partial_gibbs = np.empty_like(endmember_vector)
 
         #Loop over the various phases and compute the gibbs free energy
         #of each one at P,T.  We have to treat solid solutions and
@@ -151,9 +135,9 @@ class EquilibriumAssemblage(Material):
         for phase in self.phases:
             if isinstance (phase, SolidSolution):
 
-                n = len(phase.base_material)
-                frac = np.sum(species_vector[i:(i+n)])
-                molar_fractions = ( species_vector[i:(i+n)]/frac if (frac > 1.e-6)  else np.ones( n )/n )
+                n = len(phase.endmembers)
+                frac = np.sum(endmember_vector[i:(i+n)])
+                molar_fractions = ( endmember_vector[i:(i+n)]/frac if (frac > 1.e-6)  else np.ones( n )/n )
                 phase.set_composition( molar_fractions )
                 phase.set_state( pressure, temperature )
                 
@@ -170,7 +154,7 @@ class EquilibriumAssemblage(Material):
         return partial_gibbs
 
  
-    def _compute_gibbs( self, pressure, temperature, species_vector ):
+    def _compute_gibbs( self, pressure, temperature, endmember_vector ):
         """
         Given a pressure, temperature, and vector in the nullspace, 
         calculate the gibbs free energy of the assemblage.  This 
@@ -179,27 +163,27 @@ class EquilibriumAssemblage(Material):
         (which is parameterized by vectors in the nullspace)
         """
 
-        assert( len(species_vector) == len(self.endmember_formulae) )
+        assert( len(endmember_vector) == len(self.endmember_formulae) )
 
-        gibbs = np.dot( species_vector, self._compute_partial_gibbs(pressure, temperature, species_vector) )
+        gibbs = np.dot( endmember_vector, self._compute_partial_gibbs(pressure, temperature, endmember_vector) )
         return gibbs
 
 
-    def _compute_species_vector ( self, reduced_vector ):
+    def _compute_endmember_vector ( self, reduced_vector ):
         """
         Given a vector in the nullspace, return a full species vector
         in the endmember space.
         """
-        species_vector = self.baseline_assemblage + np.dot( self.right_nullspace, np.transpose(reduced_vector) )
-        return species_vector
+        endmember_vector = self.baseline_assemblage + np.dot( self.right_nullspace, np.transpose(reduced_vector) )
+        return endmember_vector
 
 
-    def _compute_bulk_composition (self, species_vector):
+    def _compute_bulk_composition (self, endmember_vector):
         """
         Given a vector in the endmember space, return the 
         bulk composition.
         """
-        return np.dot(self.stoichiometric_matrix, species_vector)
+        return np.dot(self.stoichiometric_matrix, endmember_vector)
 
 
     def _setup_subspaces (self):
@@ -239,5 +223,5 @@ class EquilibriumAssemblage(Material):
         self.baseline_assemblage = baseline_assemblage[0]
 
         #Our starting vector in the nullspace is just going to be the zero vector
-        self.reduced_species_vector = np.zeros( self.right_nullspace.shape[1] )
-        self.species_vector = self._compute_species_vector( self.reduced_species_vector)
+        self.reaction_vector = np.zeros( self.right_nullspace.shape[1] )
+        self.endmember_vector = self._compute_endmember_vector( self.reaction_vector)
