@@ -556,3 +556,13 @@ def bracket(fn, x0, dx, args=(), ratio=1.618, maxiter=100):
         raise ValueError('Cannot find zero.')
     else:
         return x0, x1, f0, f1
+
+def logish(x):
+    eps = 1.e-5
+    if(x > 1.):
+        return 0.;
+    if x > eps:
+        return np.log(x)
+    else:
+        dx = x-eps
+        return np.log(eps) + dx/eps - dx*dx/eps/eps/2.

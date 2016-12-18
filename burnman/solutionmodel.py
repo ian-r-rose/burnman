@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import numpy as np
 from . import processchemistry
 from . import constants
+from .tools import logish
 
 """
 kronecker delta function for integers
@@ -189,7 +190,7 @@ class IdealSolution (SolutionModel):
                     self.endmember_configurational_entropies[idx] = \
                         self.endmember_configurational_entropies[idx] - \
                         constants.gas_constant * self.site_multiplicities[
-                            occ] * endmember_occupancy[occ] * np.log(endmember_occupancy[occ])
+                            occ] * endmember_occupancy[occ] * logish(endmember_occupancy[occ])
 
     def _endmember_configurational_entropy_contribution(self, molar_fractions):
         return np.dot(molar_fractions, self.endmember_configurational_entropies)
@@ -201,7 +202,7 @@ class IdealSolution (SolutionModel):
             if occupancy > 1e-10:
                 conf_entropy = conf_entropy - constants.gas_constant * \
                     occupancy * \
-                    self.site_multiplicities[idx] * np.log(occupancy)
+                    self.site_multiplicities[idx] * logish(occupancy)
 
         return conf_entropy
 
@@ -218,7 +219,7 @@ class IdealSolution (SolutionModel):
                 if self.endmember_occupancies[e][occ] > 1e-10 and site_occupancies[occ] > 1e-10:
                     lna[e] = lna[e] + self.endmember_occupancies[e][occ] * \
                         self.site_multiplicities[
-                            occ] * np.log(site_occupancies[occ])
+                            occ] * logish(site_occupancies[occ])
 
             normalisation_constant = self.endmember_configurational_entropies[
                 e] / constants.gas_constant
