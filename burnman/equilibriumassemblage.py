@@ -1,14 +1,16 @@
 # BurnMan - a lower mantle toolkit
 # Copyright (C) 2012-2014, Myhill, R., Heister, T., Unterborn, C., Rose, I. and Cottaar, S.
 # Released under GPL v2 or later.
+from __future__ import absolute_import
+from __future__ import print_function
 
 import numpy as np
 import scipy.optimize as opt
 
-from burnman import Material
-from burnman import Mineral
-from burnman import SolidSolution
-import gibbsminimization as gm
+from .material import Material
+from .mineral import Mineral
+from .solidsolution import SolidSolution
+from . import gibbsminimization as gm
 
 
 class EquilibriumAssemblage(Material):
@@ -85,6 +87,8 @@ class EquilibriumAssemblage(Material):
         temperature : float
             The temperature in [K] at which to set the state. 
         """
+        self._pressure = pressure
+        self._temperature = temperature
         self._minimize_gibbs( pressure, temperature )
 
     def molar_gibbs(self):
@@ -109,7 +113,7 @@ class EquilibriumAssemblage(Material):
         equilibrium = lambda x : (self._equilibrium_equations( pressure, temperature, self._compute_endmember_vector( x ) ))
     
         #Set the solution
-        constraints={'type':'ineq', 'fun':self._compute_endmember_vector, 'ftol':1.e-8, 'maxiter':1000}
+        constraints={'type':'ineq', 'fun':self._compute_endmember_vector}
         sol = opt.minimize( minimize_gibbs, self.reaction_vector, method='SLSQP', jac=equilibrium, constraints=constraints )
 
         #Copy over the solution
@@ -122,8 +126,8 @@ class EquilibriumAssemblage(Material):
         Print the current abundance of each endmember in the assemblage, as a molar fraction.
         """
         tot = np.sum(self.endmember_vector)
-        for f,s in zip(self.endmember_formulae, self.endmember_vector):
-            print f, s/tot
+        for f,s,g in zip(self.endmember_formulae, self.endmember_vector, self._compute_partial_gibbs(self.pressure, self.temperature, self.endmember_vector)):
+            print(f, s/tot, g)
 
     def _compute_partial_gibbs( self, pressure, temperature, endmember_vector):
         partial_gibbs = np.empty_like(endmember_vector)
